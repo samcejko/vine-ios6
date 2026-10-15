@@ -109,13 +109,15 @@ function Invoke-RevineDebug {
     Invoke-IPad -IPadHost $IPadHost -Command "uiopen 'vine://revine/$Command'; sleep $WaitSeconds"
 }
 
-# The screen of Vine as a PNG (the tweak draws its windows into the app's tmp folder)
+# The screen of Vine as a PNG (the tweak draws its windows into the app's tmp folder); -Real grabs what is really
+# on the screen, the playing video included
 function Get-VineScreen {
-    param([Parameter(Mandatory = $true)][string]$OutFile, [string]$IPadHost = $script:IPadDefaultHost)
+    param([Parameter(Mandatory = $true)][string]$OutFile, [switch]$Real, [string]$IPadHost = $script:IPadDefaultHost)
+    $command = if ($Real) { 'screen' } else { 'snapshot' }
     $app = (Invoke-IPad -IPadHost $IPadHost -Command "ls -d /var/mobile/Applications/*/iphone.app | sed -n '1p'" | Out-String).Trim()
     if (-not $app) { throw 'Vine is not installed' }
     $container = $app -replace '/iphone\.app$', ''
-    Invoke-IPad -IPadHost $IPadHost -Command "rm -f '$container/tmp/screen.png'; uiopen 'vine://revine/snapshot'; sleep 3; cp '$container/tmp/screen.png' /tmp/vine-screen.png" | Out-Null
+    Invoke-IPad -IPadHost $IPadHost -Command "rm -f '$container/tmp/screen.png'; uiopen 'vine://revine/$command'; sleep 3; cp '$container/tmp/screen.png' /tmp/vine-screen.png" | Out-Null
     Copy-FromIPad -IPadHost $IPadHost -RemotePath '/tmp/vine-screen.png' -LocalPath $OutFile
     Get-Item $OutFile
 }

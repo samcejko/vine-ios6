@@ -550,7 +550,8 @@ static RVVineResponse *RVChannelTimeline(long long channelID, BOOL recent, RVPag
 {
     NSString *sort = recent ? @"recent" : @"trending";
     if (channelID == RVChannelClassics) {
-        return RVVideoTimeline(@"/api/videos", recent ? @"classic=true&sort=published" : @"classic=true", p);
+        // popular: the archive by its original loops; recent: the classics people watch now
+        return RVVideoTimeline(@"/api/videos", recent ? @"platform=vine&sort=watching" : @"classic=true", p);
     }
     if (channelID == RVChannelNew) {
         return RVVideoTimeline(@"/api/videos", [NSString stringWithFormat:@"exclude_platform=vine&sort=%@", sort], p);
@@ -574,8 +575,9 @@ static RVVineResponse *RVTimeline(NSString *method, NSArray *c, NSDictionary *qu
     RVPage p = RVPageFromQuery(query, 20);
     NSString *kind = c.count > 1 ? c[1] : @"";
     if ([kind isEqualToString:@"graph"]) {
-        // Home: the guest follows nobody, so the Vine archive is the home feed
-        return RVVideoTimeline(@"/api/videos", @"classic=true&sort=trending", p);
+        // Home: the guest follows nobody, so the Vine archive is the home feed, the most engaging classics first
+        // (classic=true only takes effect without a sort; platform=vine filters with any sort)
+        return RVVideoTimeline(@"/api/videos", @"platform=vine&sort=engagement", p);
     }
     if ([kind isEqualToString:@"popular"]) {
         return RVVideoTimeline(@"/api/videos", @"sort=trending", p);

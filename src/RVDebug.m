@@ -1,6 +1,7 @@
 #import "RVDebug.h"
 #import "RVCommon.h"
 #import <objc/runtime.h>
+#include <dlfcn.h>
 
 static BOOL (*g_origOpenURL)(id, SEL, UIApplication *, NSURL *, NSString *, id);
 static BOOL (*g_origHandleOpenURL)(id, SEL, UIApplication *, NSURL *);
@@ -171,6 +172,21 @@ static void RVWriteSnapshot(void)
     RVLog(@"DEBUG snapshot -> %@ (%lu bytes)", path, (unsigned long)png.length);
 }
 
+// What is really on the screen, video included (UIKit's private UIGetScreenImage, looked up at run time)
+static void RVWriteScreen(void)
+{
+    CGImageRef (*grab)(void) = (CGImageRef (*)(void))dlsym(RTLD_DEFAULT, "UIGetScreenImage");
+    if (!grab) { RVLog(@"DEBUG screen: no UIGetScreenImage"); return; }
+    CGImageRef cg = grab();
+    if (!cg) { RVLog(@"DEBUG screen: no image"); return; }
+    UIImage *img = [UIImage imageWithCGImage:cg];
+    CGImageRelease(cg);
+    NSData *png = UIImagePNGRepresentation(img);
+    NSString *path = [NSTemporaryDirectory() stringByAppendingPathComponent:@"screen.png"];
+    [png writeToFile:path atomically:YES];
+    RVLog(@"DEBUG screen -> %@ (%lu bytes)", path, (unsigned long)png.length);
+}
+
 static void RVHandleDebug(NSURL *url)
 {
     NSString *command = [url.path stringByTrimmingCharactersInSet:[NSCharacterSet characterSetWithCharactersInString:@"/"]];
@@ -189,6 +205,8 @@ static void RVHandleDebug(NSURL *url)
         }
     } else if ([command isEqualToString:@"snapshot"]) {
         RVWriteSnapshot();
+    } else if ([command isEqualToString:@"screen"]) {
+        RVWriteScreen();
     } else if ([command isEqualToString:@"press"]) {
         CGPoint pt = CGPointMake([q[@"x"] floatValue], [q[@"y"] floatValue]);
         UIView *hit = [key hitTest:pt withEvent:nil];
