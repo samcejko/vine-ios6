@@ -3,9 +3,11 @@
 // Repairs inside Vine itself, independent of its servers
 @interface RVFixes : NSObject
 
-// Vine's AFNetworking builds GET requests that carry parameters as "(null)/timelines/graph?c_max=3..." on iOS 6:
-// the base URL goes missing when the query is added. Those requests (the home feed, profiles' posts, every
-// timeline) then fail before any protocol sees them. The hook puts the client's base URL back.
+// The VineRedirect tweak (bag.xml.vineredirect) replaces "https://api.vineapp.com" in every +[NSURL URLWithString:]
+// with the address set in its preferences, "(null)" when none is set. AFNetworking builds GET requests that carry
+// parameters with +URLWithString:, so the home feed, profiles' posts and every timeline turn into
+// "(null)/timelines/graph?c_max=3..." and fail before any protocol sees them. The hook puts the client's base URL
+// back.
 + (void)install;
 
 @end

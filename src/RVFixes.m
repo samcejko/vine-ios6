@@ -20,7 +20,8 @@ static id RVRequestWithMethod(id self, SEL _cmd, id method, id path, id paramete
     NSString *baseString = [base absoluteString];
     if (!baseString.length) return request;
     if (![baseString hasSuffix:@"/"]) baseString = [baseString stringByAppendingString:@"/"];
-    NSURL *fixed = [NSURL URLWithString:[baseString stringByAppendingString:[built substringFromIndex:RVNullPrefix.length]]];
+    // (initWithString: and not +URLWithString:, which the VineRedirect tweak replaces)
+    NSURL *fixed = [[NSURL alloc] initWithString:[baseString stringByAppendingString:[built substringFromIndex:RVNullPrefix.length]]];
     if (fixed) [(NSMutableURLRequest *)request setURL:fixed];
     if (RVDebugLogRequests()) {
         RVLog(@"fix %@ (%@) -> %@ -> now %@", built, NSStringFromClass([request class]), fixed.absoluteString, [[request URL] absoluteString]);
