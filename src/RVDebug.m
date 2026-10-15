@@ -370,6 +370,14 @@ static void *RVModifyRequest(id self, SEL _cmd, id request)
     return result;
 }
 
+static NSString *RVOneLine(id value)
+{
+    NSString *d = [value description] ?: @"nil";
+    d = [d stringByReplacingOccurrencesOfString:@"\n" withString:@" "];
+    while ([d rangeOfString:@"  "].location != NSNotFound) d = [d stringByReplacingOccurrencesOfString:@"  " withString:@" "];
+    return d;
+}
+
 static id (*g_origRequestWithMethod)(id, SEL, id, id, id);
 static id RVRequestWithMethod(id self, SEL _cmd, id method, id path, id parameters)
 {
@@ -378,7 +386,12 @@ static id RVRequestWithMethod(id self, SEL _cmd, id method, id path, id paramete
     if ([result hasPrefix:@"(null)"] || parameters) {
         id base = nil;
         @try { base = [self valueForKey:@"baseURL"]; } @catch (NSException *e) {}
-        RVLog(@"DEBUG AF %@ path=%@ params=%@ base=%@ -> %@", method, path, parameters, base, result);
+        NSMutableArray *types = [NSMutableArray array];
+        if ([parameters isKindOfClass:[NSDictionary class]]) {
+            for (id key in parameters) [types addObject:[NSString stringWithFormat:@"%@:%@", key, NSStringFromClass([parameters[key] class])]];
+        }
+        RVLog(@"DEBUG AF %@ path=%@ params=%@ types=%@ base=%@ -> %@", method, path, RVOneLine(parameters),
+              [types componentsJoinedByString:@","], base, result);
     }
     return request;
 }
