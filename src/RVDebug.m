@@ -2,6 +2,7 @@
 #import "RVCommon.h"
 #import <objc/runtime.h>
 #include <dlfcn.h>
+#include <mach-o/dyld.h>
 
 // CMTime's layout, without linking CoreMedia
 typedef struct { long long value; int timescale; unsigned int flags; long long epoch; } CMTimeLike;
@@ -445,10 +446,64 @@ static id RVRequestWithMethod(id self, SEL _cmd, id method, id path, id paramete
     return request;
 }
 
+// The Objective-C method of the main executable an address falls in (Vine's binary has no symbols, but its
+// classes are in the runtime)
+static NSString *RVMethodForAddress(uintptr_t address)
+{
+    const char *image = _dyld_get_image_name(0);
+    unsigned int classCount = 0;
+    const char **names = objc_copyClassNamesForImage(image, &classCount);
+    NSString *best = nil;
+    uintptr_t bestAddress = 0;
+    for (unsigned int i = 0; i < classCount; i++) {
+        Class cls = objc_getClass(names[i]);
+        for (int meta = 0; meta < 2 && cls; meta++) {
+            Class c = meta ? object_getClass(cls) : cls;
+            unsigned int count = 0;
+            Method *methods = class_copyMethodList(c, &count);
+            for (unsigned int m = 0; m < count; m++) {
+                uintptr_t a = (uintptr_t)method_getImplementation(methods[m]) & ~(uintptr_t)1;
+                if (a <= address && a > bestAddress) {
+                    bestAddress = a;
+                    best = [NSString stringWithFormat:@"%c[%s %@]", meta ? '+' : '-', names[i], NSStringFromSelector(method_getName(methods[m]))];
+                }
+            }
+            free(methods);
+        }
+    }
+    free(names);
+    return best ? [NSString stringWithFormat:@"%@ + %lu", best, (unsigned long)(address - bestAddress)] : @"?";
+}
+
+static NSUncaughtExceptionHandler *g_previousHandler;
+static void RVUncaught(NSException *exception)
+{
+    RVLog(@"DEBUG uncaught %@: %@", exception.name, exception.reason);
+    const struct mach_header *header = _dyld_get_image_header(0);
+    uintptr_t start = (uintptr_t)header;
+    for (NSNumber *n in exception.callStackReturnAddresses) {
+        uintptr_t a = (uintptr_t)[n unsignedLongValue];
+        Dl_info info;
+        if (dladdr((void *)a, &info) && info.dli_fbase == header) {
+            RVLog(@"DEBUG   0x%lx (+0x%lx) %@", (unsigned long)a, (unsigned long)(a - start), RVMethodForAddress(a));
+        } else if (dladdr((void *)a, &info)) {
+            RVLog(@"DEBUG   0x%lx %s %s", (unsigned long)a, info.dli_fname ? strrchr(info.dli_fname, '/') + 1 : "?", info.dli_sname ?: "");
+        }
+    }
+    if (g_previousHandler) g_previousHandler(exception);
+}
+
 @implementation RVDebug
 
 + (void)install
 {
+    if (RVDebugLogRequests()) {
+        // (after Crashlytics has set its own handler at launch: ours goes first and passes on)
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            g_previousHandler = NSGetUncaughtExceptionHandler();
+            NSSetUncaughtExceptionHandler(&RVUncaught);
+        });
+    }
     if (RVDebugLogRequests()) {
         Class af = NSClassFromString(@"AFHTTPClient");
         Method m = af ? class_getInstanceMethod(af, @selector(requestWithMethod:path:parameters:)) : NULL;
