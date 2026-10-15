@@ -3,6 +3,9 @@
 #import <objc/runtime.h>
 #include <dlfcn.h>
 
+// CMTime's layout, without linking CoreMedia
+typedef struct { long long value; int timescale; unsigned int flags; long long epoch; } CMTimeLike;
+
 static BOOL (*g_origOpenURL)(id, SEL, UIApplication *, NSURL *, NSString *, id);
 static BOOL (*g_origHandleOpenURL)(id, SEL, UIApplication *, NSURL *);
 static void RVInspect(NSDictionary *q);
@@ -172,6 +175,30 @@ static void RVWriteSnapshot(void)
     RVLog(@"DEBUG snapshot -> %@ (%lu bytes)", path, (unsigned long)png.length);
 }
 
+// Every AVPlayerLayer on screen: is its player playing, where, which file
+static void RVLogPlayers(CALayer *layer, UIWindow *w, NSInteger *found)
+{
+    if ([layer isKindOfClass:NSClassFromString(@"AVPlayerLayer")]) {
+        (*found)++;
+        id player = [layer valueForKey:@"player"];
+        id item = [player valueForKey:@"currentItem"];
+        id asset = [item valueForKey:@"asset"];
+        NSURL *assetURL = [asset respondsToSelector:@selector(URL)] ? [asset valueForKey:@"URL"] : nil;
+        float rate = player ? [[player valueForKey:@"rate"] floatValue] : 0;
+        double now = 0;
+        if (item) {
+            NSValue *t = [item valueForKey:@"currentTime"];
+            CMTimeLike time;
+            [t getValue:&time];
+            now = time.timescale ? (double)time.value / time.timescale : 0;
+        }
+        CGRect r = [layer convertRect:layer.bounds toLayer:w.layer];
+        RVLog(@"DEBUG player (%.0f,%.0f %.0fx%.0f) rate %.1f time %.2f status %@ %@", r.origin.x, r.origin.y, r.size.width, r.size.height,
+              rate, now, [item valueForKey:@"status"], assetURL.lastPathComponent);
+    }
+    for (CALayer *sub in layer.sublayers) RVLogPlayers(sub, w, found);
+}
+
 // What is really on the screen, video included (UIKit's private UIGetScreenImage, looked up at run time)
 static void RVWriteScreen(void)
 {
@@ -207,6 +234,10 @@ static void RVHandleDebug(NSURL *url)
         RVWriteSnapshot();
     } else if ([command isEqualToString:@"screen"]) {
         RVWriteScreen();
+    } else if ([command isEqualToString:@"players"]) {
+        NSInteger found = 0;
+        for (UIWindow *w in [UIApplication sharedApplication].windows) RVLogPlayers(w.layer, w, &found);
+        RVLog(@"DEBUG players: %ld", (long)found);
     } else if ([command isEqualToString:@"press"]) {
         CGPoint pt = CGPointMake([q[@"x"] floatValue], [q[@"y"] floatValue]);
         UIView *hit = [key hitTest:pt withEvent:nil];
