@@ -3,7 +3,7 @@
 #import "RVIDMap.h"
 #import "RVAssets.h"
 #import "RVURLProtocol.h"
-#import "RVHTTPRequest.h"
+#import "RVMediaCheck.h"
 #import "RVCommon.h"
 
 #include <time.h>
@@ -443,60 +443,21 @@ static NSDictionary *RVParseQuery(NSString *query)
     return values;
 }
 
-// Some archived Vines have no video on diVine's media server (404): Vine would spin on them for ever. A request for
-// the first byte tells; answers are kept for the session. A failed check (network) keeps the post.
-static BOOL RVMediaAvailable(NSString *url)
-{
-    static NSMutableDictionary *known;
-    static dispatch_once_t once;
-    dispatch_once(&once, ^{ known = [NSMutableDictionary dictionary]; });
-    @synchronized (known) {
-        NSNumber *cached = known[url];
-        if (cached) return [cached boolValue];
-    }
-    NSURL *target = [NSURL URLWithString:url];
-    if (!target) return YES;
-    RVHTTPRequest *request = [[RVHTTPRequest alloc] initWithMethod:@"GET" URL:target];
-    request.headers = @{ @"Range": @"bytes=0-0" };
-    request.noCompression = YES;
-    request.connectTimeout = 6;
-    request.readTimeout = 6;
-    __block NSInteger status = 0;
-    __weak RVHTTPRequest *weakRequest = request;
-    request.onHeaders = ^(NSInteger code, NSDictionary *headers) {
-        status = code;
-        if (code == 200) [weakRequest cancel];   // (a server that ignores the range: the whole file is not needed)
-    };
-    request.onData = ^(NSData *chunk) {};
-    [request runSynchronously];
-    if (status == 0) return YES;
-    BOOL available = status == 200 || status == 206;
-    @synchronized (known) {
-        if (known.count > 5000) [known removeAllObjects];
-        known[url] = @(available);
-    }
-    return available;
-}
-
-// The records whose archived video exists (checked side by side)
+// The records whose archived video exists on diVine's media server (see RVMediaCheck)
 static NSArray *RVPlayableRecords(NSArray *records)
 {
-    NSUInteger count = records.count;
-    if (!count) return records;
-    BOOL *keep = calloc(count, sizeof(BOOL));
-    dispatch_apply(count, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^(size_t i) {
-        NSDictionary *record = records[i];
-        // (only archived posts can miss their video; new uploads are on the media server by definition)
-        BOOL archived = [RVStr(record[@"permalinkUrl"]) hasPrefix:@"https://vine.co/v/"];
-        keep[i] = !archived || RVMediaAvailable(RVStr(record[@"videoUrl"]));
-    });
-    NSMutableArray *playable = [NSMutableArray arrayWithCapacity:count];
-    for (NSUInteger i = 0; i < count; i++) if (keep[i]) [playable addObject:records[i]];
-    free(keep);
-    if (playable.count < count) RVLog(@"%lu of %lu archived posts have no video on diVine", (unsigned long)(count - playable.count), (unsigned long)count);
+    // (only archived posts can miss their video; new uploads are on the media server by definition)
+    NSMutableArray *urls = [NSMutableArray array];
+    for (NSDictionary *record in records) {
+        if ([RVStr(record[@"permalinkUrl"]) hasPrefix:@"https://vine.co/v/"] && RVStr(record[@"videoUrl"])) [urls addObject:record[@"videoUrl"]];
+    }
+    if (!urls.count) return records;
+    NSSet *missing = [RVMediaCheck missingAmong:urls timeout:3.0];
+    if (!missing.count) return records;
+    NSMutableArray *playable = [NSMutableArray arrayWithCapacity:records.count];
+    for (NSDictionary *record in records) if (![missing containsObject:RVStr(record[@"videoUrl"]) ?: @""]) [playable addObject:record];
     return playable;
 }
-
 // api/videos?... (a list) -> Vine timeline
 static RVVineResponse *RVVideoTimeline(NSString *path, NSString *params, RVPage p)
 {

@@ -267,6 +267,22 @@ static void RVHandleDebug(NSURL *url)
             }
         }
         RVLog(@"DEBUG type -> field %ld of %lu %@", (long)n, (unsigned long)fields.count, field ? @"set" : @"missing");
+    } else if ([command isEqualToString:@"search"]) {
+        // text into the search bar on screen as if typed, then its Search button
+        NSMutableArray *bars = [NSMutableArray array];
+        RVCollect(key, [UISearchBar class], bars);
+        UISearchBar *bar = bars.count ? bars[0] : nil;
+        NSString *text = q[@"text"] ?: @"";
+        if (bar) {
+            id<UISearchBarDelegate> delegate = bar.delegate;
+            if ([delegate respondsToSelector:@selector(searchBarTextDidBeginEditing:)]) [delegate searchBarTextDidBeginEditing:bar];
+            bar.text = text;
+            if ([delegate respondsToSelector:@selector(searchBar:textDidChange:)]) [delegate searchBar:bar textDidChange:text];
+            if (![q[@"submit"] isEqualToString:@"0"] && [delegate respondsToSelector:@selector(searchBarSearchButtonClicked:)]) {
+                [delegate searchBarSearchButtonClicked:bar];
+            }
+        }
+        RVLog(@"DEBUG search '%@' -> %@ (delegate %@)", text, bar ? @"search bar" : @"no search bar", NSStringFromClass([bar.delegate class]));
     } else if ([command isEqualToString:@"alert"]) {
         UIAlertView *alert = nil;
         for (UIWindow *w in [UIApplication sharedApplication].windows) {
