@@ -76,6 +76,17 @@ static void RVDumpView(UIView *v, UIWindow *w, NSMutableArray *lines)
         if (CGRectIntersectsRect(r, w.bounds) && r.size.width > 1 && r.size.height > 1) {
             NSString *text = RVViewText(v);
             if (text.length > 60) text = [[text substringToIndex:60] stringByAppendingString:@"..."];
+            // (links of attributed labels, e.g. "548 likes", go to vine:// URLs: list them)
+            if ([v respondsToSelector:NSSelectorFromString(@"links")]) {
+                NSMutableArray *urls = [NSMutableArray array];
+                @try {
+                    for (id result in [v valueForKey:@"links"]) {
+                        NSURL *u = [result respondsToSelector:@selector(URL)] ? [result URL] : nil;
+                        if (u) [urls addObject:u.absoluteString];
+                    }
+                } @catch (NSException *e) {}
+                if (urls.count) text = [text stringByAppendingFormat:@" LINKS %@", [urls componentsJoinedByString:@" "]];
+            }
             [lines addObject:[NSString stringWithFormat:@"%@ (%.0f,%.0f %.0fx%.0f)%@ %@", NSStringFromClass([v class]),
                               r.origin.x, r.origin.y, r.size.width, r.size.height,
                               v.gestureRecognizers.count ? @" G" : @"", text]];

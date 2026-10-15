@@ -501,7 +501,8 @@ static RVVineResponse *RVUserProfile(NSString *vineID)
 
 static RVVineResponse *RVUserSearch(NSString *term, RVPage p)
 {
-    NSString *path = [NSString stringWithFormat:@"/api/search/profiles?q=%@&limit=%ld&offset=%ld",
+    // (only people with videos: diVine also knows every Nostr account that never posted one)
+    NSString *path = [NSString stringWithFormat:@"/api/search/profiles?q=%@&has_videos=true&limit=%ld&offset=%ld",
                       [RVDivine escape:term], (long)p.size, (long)p.offset];
     NSError *error = nil;
     id json = [RVDivine get:path error:&error];
