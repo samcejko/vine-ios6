@@ -1,6 +1,8 @@
 /* Revine - texts shown inside Vine (English) */
 
+"ReadOnlyTitle" = "Viewing only";
 "ReadOnlyMessage" = "Revine can only show Vines for now. Liking, commenting, following and posting need a diVine account, which Vine cannot sign in to yet.";
+"OK" = "OK";
 "UnreachableMessage" = "diVine could not be reached. Check the connection and try again.";
 "NotFoundMessage" = "This is no longer on diVine.";
 "PageUnavailable" = "This page of Vine no longer exists.";

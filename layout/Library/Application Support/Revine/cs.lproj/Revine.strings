@@ -1,6 +1,8 @@
 /* Revine - texty uvnitř Vine (čeština) */
 
+"ReadOnlyTitle" = "Jen prohlížení";
 "ReadOnlyMessage" = "Revine zatím umí Viny jen přehrávat. Lajky, komentáře, sledování a přidávání videí potřebují účet na diVine, ke kterému se Vine zatím přihlásit neumí.";
+"OK" = "OK";
 "UnreachableMessage" = "diVine není dostupné. Zkontroluj připojení a zkus to znovu.";
 "NotFoundMessage" = "Tohle už na diVine není.";
 "PageUnavailable" = "Tahle stránka Vine už neexistuje.";

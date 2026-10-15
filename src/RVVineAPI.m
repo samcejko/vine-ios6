@@ -116,6 +116,13 @@ static NSString *RVAvatar(NSString *url)
     return url ? [RVURLProtocol proxyURLForURL:url] : RVDefaultAvatarURL;
 }
 
+// Display names in "fancy" Unicode letters (mathematical bold, script...) have no glyphs on iOS 6 and show as boxes:
+// compatibility mapping turns them into plain letters (emoji stay)
+static NSString *RVPlainName(NSString *name)
+{
+    return name.length ? [name precomposedStringWithCompatibilityMapping] : name;
+}
+
 static NSString *RVShortName(NSString *pubkey)
 {
     return pubkey.length >= 8 ? [NSString stringWithFormat:@"%@ %@", L(@"User"), [pubkey substringToIndex:8]] : L(@"User");
@@ -156,8 +163,19 @@ static RVVineResponse *RVFailure(NSInteger status, NSString *message)
     return RVJSONResponse(status, @{ @"code": @"", @"data": @"", @"success": @NO, @"error": message ?: @"" });
 }
 
+// An action that needs a diVine account (like, follow, comment, revine, post). Vine undoes it quietly on an error,
+// so the tweak says why itself, at most every 20 seconds.
 static RVVineResponse *RVReadOnly(void)
 {
+    dispatch_async(dispatch_get_main_queue(), ^{
+        static NSTimeInterval lastShown;
+        NSTimeInterval now = [NSDate timeIntervalSinceReferenceDate];
+        if (now - lastShown < 20) return;
+        lastShown = now;
+        UIAlertView *alert = [[UIAlertView alloc] initWithTitle:L(@"ReadOnlyTitle") message:L(@"ReadOnlyMessage")
+                                                       delegate:nil cancelButtonTitle:L(@"OK") otherButtonTitles:nil];
+        [alert show];
+    });
     return RVFailure(400, L(@"ReadOnlyMessage"));
 }
 
@@ -284,7 +302,7 @@ static NSDictionary *RVPostRecord(NSDictionary *video)
     if (!when) when = RVLong(RVTagValue(tags, @"published_at"));
     if (!when) when = RVLong(v[@"created_at"]);
 
-    NSString *username = RVNonEmpty(RVStr(v[@"author_name"])) ?: RVTagValue(tags, @"author") ?: RVShortName(pubkey);
+    NSString *username = RVPlainName(RVNonEmpty(RVStr(v[@"author_name"])) ?: RVTagValue(tags, @"author") ?: RVShortName(pubkey));
     NSString *avatar = RVAvatar(RVStr(v[@"author_avatar"]));
 
     NSString *vineShortID = classic ? (RVTagValue(tags, @"vine_id") ?: RVNonEmpty(RVStr(v[@"d_tag"]))) : nil;
@@ -354,7 +372,7 @@ static NSDictionary *RVUserRecord(NSDictionary *user)
     NSDictionary *stats = RVDict(user[@"stats"]);
     NSDictionary *engagement = RVDict(user[@"engagement"]);
 
-    NSString *name = RVNonEmpty(RVStr(profile[@"display_name"])) ?: RVNonEmpty(RVStr(profile[@"name"])) ?: RVShortName(pubkey);
+    NSString *name = RVPlainName(RVNonEmpty(RVStr(profile[@"display_name"])) ?: RVNonEmpty(RVStr(profile[@"name"])) ?: RVShortName(pubkey));
     NSString *avatar = RVAvatar(RVStr(profile[@"picture"]));
     long long followers = social ? RVLong(social[@"follower_count"]) : RVLong(user[@"follower_count"]);
     long long following = social ? RVLong(social[@"following_count"]) : RVLong(user[@"following_count"]);
@@ -674,6 +692,7 @@ static RVVineResponse *RVPostLists(NSString *method, NSArray *c, NSDictionary *q
             NSDictionary *profile = RVDict(RVDict(authors[pubkey])[@"profile"]);
             NSString *name = RVNonEmpty(RVStr(comment[@"author_name"])) ?: RVNonEmpty(RVStr(profile[@"display_name"])) ?:
                              RVNonEmpty(RVStr(profile[@"name"])) ?: RVShortName(pubkey);
+            name = RVPlainName(name);
             NSString *avatar = RVAvatar(RVNonEmpty(RVStr(comment[@"author_avatar"])) ?: RVStr(profile[@"picture"]));
             NSString *text = RVStr(comment[@"content"]) ?: @"";
             NSNumber *userID = [RVIDMap numberForHex:pubkey kind:RVIDKindUser];
@@ -787,6 +806,8 @@ static RVVineResponse *RVUsers(NSString *method, NSArray *c, NSDictionary *query
     // users/<id>[/...]
     if (c.count == 2) {
         if ([method isEqualToString:@"GET"]) return RVUserProfile(second);
+        // (Vine sends its push token this way at every launch: accepted and forgotten; editing the profile is not)
+        if ([method isEqualToString:@"PUT"] && query[@"deviceToken"] && query.count <= 2) return RVSuccess(@{});
         return RVReadOnly();
     }
     NSString *what = c[2];
