@@ -282,7 +282,27 @@ static void RVHandleDebug(NSURL *url)
                 [delegate searchBarSearchButtonClicked:bar];
             }
         }
-        RVLog(@"DEBUG search '%@' -> %@ (delegate %@)", text, bar ? @"search bar" : @"no search bar", NSStringFromClass([bar.delegate class]));
+        UITextField *field = nil;
+        if (!bar) {
+            // a plain text field: typed through its delegate as the keyboard does, then Return
+            NSMutableArray *fields = [NSMutableArray array];
+            RVCollect(key, [UITextField class], fields);
+            field = fields.count ? fields[0] : nil;
+            id<UITextFieldDelegate> delegate = field.delegate;
+            [field becomeFirstResponder];
+            BOOL accept = YES;
+            if ([delegate respondsToSelector:@selector(textField:shouldChangeCharactersInRange:replacementString:)]) {
+                accept = [delegate textField:field shouldChangeCharactersInRange:NSMakeRange(0, field.text.length) replacementString:text];
+            }
+            if (accept) field.text = text;
+            [field sendActionsForControlEvents:UIControlEventEditingChanged];
+            [[NSNotificationCenter defaultCenter] postNotificationName:UITextFieldTextDidChangeNotification object:field];
+            if (![q[@"submit"] isEqualToString:@"0"] && [delegate respondsToSelector:@selector(textFieldShouldReturn:)]) {
+                [delegate textFieldShouldReturn:field];
+            }
+        }
+        RVLog(@"DEBUG search '%@' -> %@ (delegate %@)", text, bar ? @"search bar" : field ? @"text field" : @"nothing",
+              NSStringFromClass([(bar ? (id)bar.delegate : (id)field.delegate) class]));
     } else if ([command isEqualToString:@"alert"]) {
         UIAlertView *alert = nil;
         for (UIWindow *w in [UIApplication sharedApplication].windows) {
