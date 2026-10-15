@@ -3,6 +3,7 @@
 #import "RVIDMap.h"
 #import "RVAssets.h"
 #import "RVURLProtocol.h"
+#import "RVHTTPRequest.h"
 #import "RVCommon.h"
 
 #include <time.h>
@@ -442,6 +443,60 @@ static NSDictionary *RVParseQuery(NSString *query)
     return values;
 }
 
+// Some archived Vines have no video on diVine's media server (404): Vine would spin on them for ever. A request for
+// the first byte tells; answers are kept for the session. A failed check (network) keeps the post.
+static BOOL RVMediaAvailable(NSString *url)
+{
+    static NSMutableDictionary *known;
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{ known = [NSMutableDictionary dictionary]; });
+    @synchronized (known) {
+        NSNumber *cached = known[url];
+        if (cached) return [cached boolValue];
+    }
+    NSURL *target = [NSURL URLWithString:url];
+    if (!target) return YES;
+    RVHTTPRequest *request = [[RVHTTPRequest alloc] initWithMethod:@"GET" URL:target];
+    request.headers = @{ @"Range": @"bytes=0-0" };
+    request.noCompression = YES;
+    request.connectTimeout = 6;
+    request.readTimeout = 6;
+    __block NSInteger status = 0;
+    __weak RVHTTPRequest *weakRequest = request;
+    request.onHeaders = ^(NSInteger code, NSDictionary *headers) {
+        status = code;
+        if (code == 200) [weakRequest cancel];   // (a server that ignores the range: the whole file is not needed)
+    };
+    request.onData = ^(NSData *chunk) {};
+    [request runSynchronously];
+    if (status == 0) return YES;
+    BOOL available = status == 200 || status == 206;
+    @synchronized (known) {
+        if (known.count > 5000) [known removeAllObjects];
+        known[url] = @(available);
+    }
+    return available;
+}
+
+// The records whose archived video exists (checked side by side)
+static NSArray *RVPlayableRecords(NSArray *records)
+{
+    NSUInteger count = records.count;
+    if (!count) return records;
+    BOOL *keep = calloc(count, sizeof(BOOL));
+    dispatch_apply(count, dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^(size_t i) {
+        NSDictionary *record = records[i];
+        // (only archived posts can miss their video; new uploads are on the media server by definition)
+        BOOL archived = [RVStr(record[@"permalinkUrl"]) hasPrefix:@"https://vine.co/v/"];
+        keep[i] = !archived || RVMediaAvailable(RVStr(record[@"videoUrl"]));
+    });
+    NSMutableArray *playable = [NSMutableArray arrayWithCapacity:count];
+    for (NSUInteger i = 0; i < count; i++) if (keep[i]) [playable addObject:records[i]];
+    free(keep);
+    if (playable.count < count) RVLog(@"%lu of %lu archived posts have no video on diVine", (unsigned long)(count - playable.count), (unsigned long)count);
+    return playable;
+}
+
 // api/videos?... (a list) -> Vine timeline
 static RVVineResponse *RVVideoTimeline(NSString *path, NSString *params, RVPage p)
 {
@@ -452,7 +507,7 @@ static RVVineResponse *RVVideoTimeline(NSString *path, NSString *params, RVPage 
     id json = [RVDivine get:full error:&error];
     if (!json) return error.code == 404 ? RVSuccess(RVPaged(@[], p, NO, 0)) : RVUnreachable(error);
     NSArray *videos = RVArr(json) ?: RVArr(RVDict(json)[@"data"]) ?: RVArr(RVDict(json)[@"videos"]);
-    NSArray *records = RVPostRecords(videos);
+    NSArray *records = RVPlayableRecords(RVPostRecords(videos));
     return RVSuccess(RVPaged(records, p, videos.count >= (NSUInteger)p.size, 0));
 }
 
@@ -605,8 +660,10 @@ static RVVineResponse *RVTimeline(NSString *method, NSArray *c, NSDictionary *qu
     if ([kind isEqualToString:@"posts"] && c.count > 2) {
         NSString *eventID = [RVIDMap hexForString:c[2] kind:RVIDKindPost];
         if (!eventID) return RVSuccess(RVPaged(@[], p, NO, 0));
+        // (the stats answer is a flat video with its counts; the plain one has no loop count for new videos)
         NSError *error = nil;
-        NSDictionary *video = RVDict([RVDivine get:[@"/api/videos/" stringByAppendingString:eventID] error:&error]);
+        NSDictionary *video = RVDict([RVDivine get:[NSString stringWithFormat:@"/api/videos/%@/stats", eventID] error:&error]);
+        if (!video) video = RVDict([RVDivine get:[@"/api/videos/" stringByAppendingString:eventID] error:&error]);
         if (!video) return error.code == 404 ? RVSuccess(RVPaged(@[], p, NO, 0)) : RVUnreachable(error);
         NSDictionary *record = RVPostRecord(video);
         return RVSuccess(RVPaged(record ? @[record] : @[], p, NO, 0));
