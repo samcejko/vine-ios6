@@ -493,10 +493,44 @@ static void RVUncaught(NSException *exception)
     if (g_previousHandler) g_previousHandler(exception);
 }
 
+static void RVLogStack(NSArray *addresses)
+{
+    const struct mach_header *header = _dyld_get_image_header(0);
+    uintptr_t start = (uintptr_t)header;
+    for (NSNumber *n in addresses) {
+        uintptr_t a = (uintptr_t)[n unsignedLongValue];
+        Dl_info info;
+        if (dladdr((void *)a, &info) && info.dli_fbase == header) {
+            RVLog(@"DEBUG   0x%lx (+0x%lx) %@", (unsigned long)a, (unsigned long)(a - start), RVMethodForAddress(a));
+        } else if (dladdr((void *)a, &info)) {
+            RVLog(@"DEBUG   0x%lx %s %s", (unsigned long)a, info.dli_fname ? strrchr(info.dli_fname, '/') + 1 : "?", info.dli_sname ?: "");
+        }
+    }
+}
+
+// A subdataWithRange: past the end: who asked (the exception that follows has no readable stack)
+static id (*g_origSubdata)(id, SEL, NSRange);
+static id RVSubdata(id self, SEL _cmd, NSRange range)
+{
+    if (NSMaxRange(range) > [(NSData *)self length]) {
+        RVLog(@"DEBUG subdataWithRange {%lu, %lu} of %lu bytes, from:", (unsigned long)range.location, (unsigned long)range.length,
+              (unsigned long)[(NSData *)self length]);
+        RVLogStack([NSThread callStackReturnAddresses]);
+        NSData *head = [(NSData *)self subdataWithRange:NSMakeRange(0, MIN((NSUInteger)64, [(NSData *)self length]))];
+        RVLog(@"DEBUG   data starts %@", head);
+    }
+    return g_origSubdata(self, _cmd, range);
+}
+
 @implementation RVDebug
 
 + (void)install
 {
+    if (RVDebugLogRequests()) {
+        Class data = NSClassFromString(@"NSConcreteMutableData");
+        Method sub = data ? class_getInstanceMethod(data, @selector(subdataWithRange:)) : NULL;
+        if (sub) g_origSubdata = (id (*)(id, SEL, NSRange))method_setImplementation(sub, (IMP)RVSubdata);
+    }
     if (RVDebugLogRequests()) {
         // (after Crashlytics has set its own handler at launch: ours goes first and passes on)
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(0.5 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
