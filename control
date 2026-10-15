@@ -6,5 +6,5 @@ Description: Brings the original Vine app (2.5.1) back on iOS 6 with the content
 Maintainer: samcejko
 Author: samcejko
 Section: Tweaks
-Depends: mobilesubstrate, firmware (>= 6.0), firmware (<< 11.0)
+Depends: mobilesubstrate, firmware (>= 6.0), firmware (<< 7.0)
 Conflicts: bag.xml.vineredirect

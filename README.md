@@ -21,8 +21,11 @@ keys), which Vine cannot sign in to yet.
 ## Installing
 
 1. Install Vine 2.5.1 yourself (a decrypted IPA with AppSync / ipainstaller). Revine does not contain or download Vine.
-2. Install the Revine package from the repository http://repo.samcejko.eu/ (or the `.deb` from the releases).
-3. Open Vine. No respring needed.
+2. Add the repository http://repo.samcejko.eu/ to Cydia and install Revine (or the `.deb` from the releases).
+   It removes the VineRedirect tweak if you have it: that one rewrites Vine's addresses and breaks every feed.
+3. Open Vine and sign in with any e-mail and password (you become a guest). No respring needed.
+
+Revine is for iOS 6.x (armv7), the system it is tested on.
 
 ## How it works
 

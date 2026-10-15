@@ -1,6 +1,6 @@
 # Changelog
 
-## 0.1.0 (unreleased)
+## 0.1.0 (2026-10-16)
 
 - First version: Vine 2.5.1 shows diVine's content. Guest sign-in (any e-mail and password), home (the most engaging
   classic Vines), popular, profiles with the original Vine colours, user posts, followers/following, comments, likes
