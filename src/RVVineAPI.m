@@ -696,14 +696,23 @@ static RVVineResponse *RVPostLists(NSString *method, NSArray *c, NSDictionary *q
         NSDictionary *json = RVDict([RVDivine get:path error:&error]);
         if (!json) return error.code == 404 ? RVSuccess(RVPaged(@[], p, NO, 0)) : RVUnreachable(error);
         NSArray *comments = RVArr(json[@"comments"]) ?: RVArr(json[@"data"]);
+        // (comments do not always carry their author's name: those come from the profiles, in one request)
+        NSMutableArray *nameless = [NSMutableArray array];
+        for (id entry in comments) {
+            NSString *pubkey = RVStr(RVDict(entry)[@"pubkey"]);
+            if (pubkey.length >= 15 && !RVNonEmpty(RVStr(RVDict(entry)[@"author_name"]))) [nameless addObject:pubkey];
+        }
+        NSDictionary *authors = nameless.count ? [RVDivine usersForPubkeys:nameless] : @{};
         NSMutableArray *records = [NSMutableArray array];
         for (id entry in comments) {
             NSDictionary *comment = RVDict(entry);
             NSString *commentID = RVStr(comment[@"id"]);
             NSString *pubkey = RVStr(comment[@"pubkey"]);
             if (commentID.length < 15 || pubkey.length < 15) continue;
-            NSString *name = RVNonEmpty(RVStr(comment[@"author_name"])) ?: RVShortName(pubkey);
-            NSString *avatar = RVAvatar(RVStr(comment[@"author_avatar"]));
+            NSDictionary *profile = RVDict(RVDict(authors[pubkey])[@"profile"]);
+            NSString *name = RVNonEmpty(RVStr(comment[@"author_name"])) ?: RVNonEmpty(RVStr(profile[@"display_name"])) ?:
+                             RVNonEmpty(RVStr(profile[@"name"])) ?: RVShortName(pubkey);
+            NSString *avatar = RVAvatar(RVNonEmpty(RVStr(comment[@"author_avatar"])) ?: RVStr(profile[@"picture"]));
             NSString *text = RVStr(comment[@"content"]) ?: @"";
             NSNumber *userID = [RVIDMap numberForHex:pubkey kind:RVIDKindUser];
             NSString *color = RVProfileColor(pubkey, nil);
