@@ -54,12 +54,18 @@ BOOL RVDebugLogRequests(void)
 
 NSString *RVText(NSString *key)
 {
-    static NSBundle *bundle;
+    // The texts follow the language of the device, not Vine's: Vine has no Czech, and iOS would pick the tweak's
+    // language to match the app's
+    static NSDictionary *texts;
     static dispatch_once_t once;
     dispatch_once(&once, ^{
-        // (a plain folder with en.lproj and cs.lproj inside works as a bundle for its translations)
-        bundle = [NSBundle bundleWithPath:RVSupportDir];
+        NSArray *preferred = [NSLocale preferredLanguages];
+        NSString *language = preferred.count ? preferred[0] : @"en";
+        NSString *folder = [language hasPrefix:@"cs"] ? @"cs.lproj" : @"en.lproj";
+        NSString *path = [[RVSupportDir stringByAppendingPathComponent:folder] stringByAppendingPathComponent:@"Revine.strings"];
+        NSString *contents = [NSString stringWithContentsOfFile:path encoding:NSUTF8StringEncoding error:NULL];
+        texts = RVDict([contents propertyListFromStringsFileFormat]) ?: @{};
     });
-    NSString *text = [bundle localizedStringForKey:key value:nil table:@"Revine"];
+    NSString *text = RVStr(texts[key]);
     return text.length ? text : key;
 }

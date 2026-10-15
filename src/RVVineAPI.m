@@ -120,7 +120,36 @@ static NSString *RVAvatar(NSString *url)
 // compatibility mapping turns them into plain letters (emoji stay)
 static NSString *RVPlainName(NSString *name)
 {
-    return name.length ? [name precomposedStringWithCompatibilityMapping] : name;
+    if (!name.length) return name;
+    // iOS 6 maps only characters of the basic plane; the "Mathematical Alphanumeric Symbols" (U+1D400-1D7FF, where
+    // these names come from) are done here: 13 alphabets of 52 letters, then 5 sets of digits
+    NSUInteger length = name.length;
+    unichar *chars = malloc(length * sizeof(unichar));
+    [name getCharacters:chars range:NSMakeRange(0, length)];
+    NSMutableString *plain = [NSMutableString stringWithCapacity:length];
+    for (NSUInteger i = 0; i < length; i++) {
+        unichar c = chars[i];
+        if (CFStringIsSurrogateHighCharacter(c) && i + 1 < length && CFStringIsSurrogateLowCharacter(chars[i + 1])) {
+            UTF32Char cp = CFStringGetLongCharacterForSurrogatePair(c, chars[i + 1]);
+            if (cp >= 0x1D400 && cp <= 0x1D6A3) {
+                UTF32Char o = (cp - 0x1D400) % 52;
+                [plain appendFormat:@"%c", (char)(o < 26 ? 'A' + o : 'a' + (o - 26))];
+                i++;
+                continue;
+            }
+            if (cp >= 0x1D7CE && cp <= 0x1D7FF) {
+                [plain appendFormat:@"%c", (char)('0' + (cp - 0x1D7CE) % 10)];
+                i++;
+                continue;
+            }
+            [plain appendString:[NSString stringWithCharacters:chars + i length:2]];
+            i++;
+            continue;
+        }
+        [plain appendString:[NSString stringWithCharacters:&c length:1]];
+    }
+    free(chars);
+    return [plain precomposedStringWithCompatibilityMapping];
 }
 
 static NSString *RVShortName(NSString *pubkey)
