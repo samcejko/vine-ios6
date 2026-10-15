@@ -310,7 +310,14 @@ static void RVInspect(NSDictionary *q)
     if (instance && path.length) {
         @try {
             id v = [instance valueForKeyPath:path];
-            RVLog(@"DEBUG %@ = <%@> %@", path, v ? NSStringFromClass([v class]) : @"nil", v);
+            NSString *d = [v description] ?: @"nil";
+            if (q[@"full"]) {
+                // (long values in pieces: syslog cuts long lines)
+                for (NSUInteger i = 0; i < d.length; i += 400) {
+                    RVLog(@"DEBUG %@ [%lu] %@", path, (unsigned long)i, [d substringWithRange:NSMakeRange(i, MIN((NSUInteger)400, d.length - i))]);
+                }
+            }
+            RVLog(@"DEBUG %@ = <%@> %@", path, v ? NSStringFromClass([v class]) : @"nil", d.length > 300 ? [d substringToIndex:300] : d);
             if (v && q[@"deep"]) RVLogIvars(v, [v class]);
         } @catch (NSException *e) {
             RVLog(@"DEBUG %@: %@", path, e.reason);
@@ -341,10 +348,27 @@ static BOOL RVHandleOpenURL(id self, SEL _cmd, UIApplication *app, NSURL *url)
     return g_origHandleOpenURL ? g_origHandleOpenURL(self, _cmd, app, url) : NO;
 }
 
+// Which client and base URL Vine picks per endpoint (test mode only)
+static id (*g_origClientForEndpoint)(id, SEL, id);
+static id RVClientForEndpoint(id self, SEL _cmd, id endpoint)
+{
+    id client = g_origClientForEndpoint(self, _cmd, endpoint);
+    id base = nil;
+    @try { base = [client valueForKey:@"baseURL"]; } @catch (NSException *e) {}
+    RVLog(@"DEBUG clientForEndpoint %@ -> %@ base %@", endpoint, NSStringFromClass([client class]), base);
+    if ([[base description] hasPrefix:@"(null)"]) RVLog(@"DEBUG stack %@", [NSThread callStackSymbols]);
+    return client;
+}
+
 @implementation RVDebug
 
 + (void)install
 {
+    if (RVDebugLogRequests()) {
+        Class manager = NSClassFromString(@"VNAPIManager");
+        Method m = manager ? class_getInstanceMethod(manager, @selector(clientForEndpoint:)) : NULL;
+        if (m) g_origClientForEndpoint = (id (*)(id, SEL, id))method_setImplementation(m, (IMP)RVClientForEndpoint);
+    }
     Class delegate = NSClassFromString(@"VNAppDelegate");
     if (!delegate) {
         RVLog(@"debug: no VNAppDelegate");
