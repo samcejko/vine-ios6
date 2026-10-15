@@ -360,6 +360,16 @@ static id RVClientForEndpoint(id self, SEL _cmd, id endpoint)
     return client;
 }
 
+// What -[VNAPIManager modifyRequest:] does to a request (test mode only; its signature is logged at load)
+static void *(*g_origModifyRequest)(id, SEL, id);
+static void *RVModifyRequest(id self, SEL _cmd, id request)
+{
+    NSString *before = [[request URL] absoluteString];
+    void *result = g_origModifyRequest(self, _cmd, request);
+    RVLog(@"DEBUG modifyRequest %@ -> %@", before, [[request URL] absoluteString]);
+    return result;
+}
+
 @implementation RVDebug
 
 + (void)install
@@ -368,6 +378,13 @@ static id RVClientForEndpoint(id self, SEL _cmd, id endpoint)
         Class manager = NSClassFromString(@"VNAPIManager");
         Method m = manager ? class_getInstanceMethod(manager, @selector(clientForEndpoint:)) : NULL;
         if (m) g_origClientForEndpoint = (id (*)(id, SEL, id))method_setImplementation(m, (IMP)RVClientForEndpoint);
+        Method modify = manager ? class_getInstanceMethod(manager, NSSelectorFromString(@"modifyRequest:")) : NULL;
+        if (modify) {
+            RVLog(@"DEBUG modifyRequest: types %s", method_getTypeEncoding(modify));
+            g_origModifyRequest = (void *(*)(id, SEL, id))method_setImplementation(modify, (IMP)RVModifyRequest);
+        }
+        Method headers = manager ? class_getInstanceMethod(manager, NSSelectorFromString(@"addHeadersToRequest:")) : NULL;
+        if (headers) RVLog(@"DEBUG addHeadersToRequest: types %s", method_getTypeEncoding(headers));
     }
     Class delegate = NSClassFromString(@"VNAppDelegate");
     if (!delegate) {
