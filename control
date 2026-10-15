@@ -7,3 +7,4 @@ Maintainer: samcejko
 Author: samcejko
 Section: Tweaks
 Depends: mobilesubstrate, firmware (>= 6.0), firmware (<< 11.0)
+Conflicts: bag.xml.vineredirect
