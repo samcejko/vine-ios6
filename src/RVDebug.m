@@ -383,7 +383,7 @@ static id RVRequestWithMethod(id self, SEL _cmd, id method, id path, id paramete
 {
     id request = g_origRequestWithMethod(self, _cmd, method, path, parameters);
     NSString *result = [[request URL] absoluteString];
-    if ([result hasPrefix:@"(null)"] || parameters) {
+    if ([result hasPrefix:@"(null)"]) {
         id base = nil;
         @try { base = [self valueForKey:@"baseURL"]; } @catch (NSException *e) {}
         NSMutableArray *types = [NSMutableArray array];
