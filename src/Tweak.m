@@ -3,6 +3,7 @@
 #import "RVURLProtocol.h"
 #import "RVTLSSocket.h"
 #import "RVIDMap.h"
+#import "RVDebug.h"
 #import "RVCommon.h"
 
 __attribute__((constructor)) static void RVInit(void)
@@ -11,6 +12,7 @@ __attribute__((constructor)) static void RVInit(void)
         if (![[[NSBundle mainBundle] bundleIdentifier] isEqualToString:@"com.vine.iphone"]) return;
         [RVURLProtocol registerProtocol];
         [RVTLSSocket warmUp];
+        [RVDebug install];
         [[NSNotificationCenter defaultCenter] addObserverForName:UIApplicationDidEnterBackgroundNotification object:nil
                                                            queue:nil usingBlock:^(NSNotification *note) {
             [RVIDMap flush];

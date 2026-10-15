@@ -95,6 +95,30 @@ function Get-VineCrashLogs {
     Get-ChildItem $OutDir -File | Sort-Object LastWriteTime -Descending | Select-Object -First 1
 }
 
+# Turns the test commands of src/RVDebug.m on or off (a root-owned file next to the tweak's support files)
+function Set-RevineDebug {
+    param([bool]$On = $true, [string]$IPadHost = $script:IPadDefaultHost)
+    $cmd = if ($On) { 'touch "/Library/Application Support/Revine/debug" && echo DEBUG_ON' } else { 'rm -f "/Library/Application Support/Revine/debug"; echo DEBUG_OFF' }
+    Invoke-IPad -IPadHost $IPadHost -Command $cmd
+}
+
+# A test command in the running Vine: dump, snapshot, press?x=&y=, tap?text=, type?n=&text=&submit=1, alert?n=, back, close
+function Invoke-RevineDebug {
+    param([Parameter(Mandatory = $true)][string]$Command, [int]$WaitSeconds = 2, [string]$IPadHost = $script:IPadDefaultHost)
+    Invoke-IPad -IPadHost $IPadHost -Command "uiopen 'vine://revine/$Command'; sleep $WaitSeconds"
+}
+
+# The screen of Vine as a PNG (the tweak draws its windows into the app's tmp folder)
+function Get-VineScreen {
+    param([Parameter(Mandatory = $true)][string]$OutFile, [string]$IPadHost = $script:IPadDefaultHost)
+    $app = (Invoke-IPad -IPadHost $IPadHost -Command "ls -d /var/mobile/Applications/*/iphone.app | sed -n '1p'" | Out-String).Trim()
+    if (-not $app) { throw 'Vine is not installed' }
+    $container = $app -replace '/iphone\.app$', ''
+    Invoke-IPad -IPadHost $IPadHost -Command "rm -f '$container/tmp/screen.png'; uiopen 'vine://revine/snapshot'; sleep 3; cp '$container/tmp/screen.png' /tmp/vine-screen.png" | Out-Null
+    Copy-FromIPad -IPadHost $IPadHost -RemotePath '/tmp/vine-screen.png' -LocalPath $OutFile
+    Get-Item $OutFile
+}
+
 # Opens a vine:// link in the app (Vine's own navigation: popular-now, channels/<id>, user-id/<id>, post/<id>...)
 function Invoke-VineLink {
     param([Parameter(Mandatory = $true)][string]$Url, [int]$WaitSeconds = 0, [string]$IPadHost = $script:IPadDefaultHost)
