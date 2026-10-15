@@ -835,8 +835,14 @@ static RVVineResponse *RVUsers(NSString *method, NSArray *c, NSDictionary *query
     // users/<id>[/...]
     if (c.count == 2) {
         if ([method isEqualToString:@"GET"]) return RVUserProfile(second);
-        // (Vine sends its push token this way at every launch: accepted and forgotten; editing the profile is not)
-        if ([method isEqualToString:@"PUT"] && query[@"deviceToken"] && query.count <= 2) return RVSuccess(@{});
+        // Vine sends its push token this way at every launch, and the profile colour from the Messages onboarding:
+        // accepted and forgotten. Editing the name or the bio is refused with the notice.
+        if ([method isEqualToString:@"PUT"]) {
+            NSSet *harmless = [NSSet setWithObjects:@"deviceToken", @"profileBackground", @"locale", @"page", @"size", @"anchor", nil];
+            BOOL onlyHarmless = YES;
+            for (NSString *field in query) if (![harmless containsObject:field]) onlyHarmless = NO;
+            if (onlyHarmless) return RVSuccess(@{});
+        }
         return RVReadOnly();
     }
     NSString *what = c[2];
@@ -1024,8 +1030,10 @@ static RVVineResponse *RVSimplePage(NSString *message)
     if ([hosts containsObject:host]) return YES;
     // The dead services of 2014 the app still calls: answered here so that nobody else can (a lapsed domain or
     // storage bucket could otherwise talk to every old copy of Vine)
+    // (graph.facebook.com: Vine's 2014 Facebook SDK reports app events with the advertising id to an API version
+    // retired long ago; nothing of it works any more)
     if ([host hasSuffix:@".s3.amazonaws.com"] || [host hasSuffix:@"testflightapp.com"] || [host hasSuffix:@"flurry.com"] ||
-        [host hasSuffix:@"crashlytics.com"]) {
+        [host hasSuffix:@"crashlytics.com"] || [host isEqualToString:@"graph.facebook.com"]) {
         return YES;
     }
     return NO;
