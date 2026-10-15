@@ -5,7 +5,7 @@
 #   Install-RevineDeb -DebPath .\packages\run-123\com.samcejko.revine_0.1.0_iphoneos-arm.deb
 #   Get-RevineLog
 #   Get-VineCrashLogs
-# Vine's executable is called "iphone", its bundle id is com.vineapp.vine.
+# Vine's executable is called "iphone", its bundle id is com.vine.iphone.
 
 $script:IPadKey = Join-Path $env:USERPROFILE '.ssh\ipad_ios6'
 $script:IPadDefaultHost = '192.168.1.176'

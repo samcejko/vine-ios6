@@ -1,1 +1,1 @@
-{ Filter = { Bundles = ( "com.vineapp.vine" ); }; }
+{ Filter = { Bundles = ( "com.vine.iphone" ); }; }
