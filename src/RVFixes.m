@@ -10,6 +10,10 @@ static id RVRequestWithMethod(id self, SEL _cmd, id method, id path, id paramete
 {
     id request = g_origRequestWithMethod(self, _cmd, method, path, parameters);
     NSString *built = [[request URL] absoluteString];
+    if (RVDebugLogRequests() && [built hasPrefix:RVNullPrefix]) {
+        NSURL *u = [request URL];
+        RVLog(@"fix sees %@ scheme=%@ host=%@ base=%@ relative=%@", built, u.scheme, u.host, u.baseURL, u.relativeString);
+    }
     if (![built hasPrefix:RVNullPrefix] || ![request respondsToSelector:@selector(setURL:)]) return request;
     NSURL *base = nil;
     @try { base = [self valueForKey:@"baseURL"]; } @catch (NSException *e) {}
@@ -18,6 +22,9 @@ static id RVRequestWithMethod(id self, SEL _cmd, id method, id path, id paramete
     if (![baseString hasSuffix:@"/"]) baseString = [baseString stringByAppendingString:@"/"];
     NSURL *fixed = [NSURL URLWithString:[baseString stringByAppendingString:[built substringFromIndex:RVNullPrefix.length]]];
     if (fixed) [(NSMutableURLRequest *)request setURL:fixed];
+    if (RVDebugLogRequests()) {
+        RVLog(@"fix %@ (%@) -> %@ -> now %@", built, NSStringFromClass([request class]), fixed.absoluteString, [[request URL] absoluteString]);
+    }
     return request;
 }
 
