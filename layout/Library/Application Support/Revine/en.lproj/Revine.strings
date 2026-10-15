@@ -1,0 +1,36 @@
+/* Revine - texts shown inside Vine (English) */
+
+"ReadOnlyMessage" = "Revine can only show Vines for now. Liking, commenting, following and posting need a diVine account, which Vine cannot sign in to yet.";
+"UnreachableMessage" = "diVine could not be reached. Check the connection and try again.";
+"NotFoundMessage" = "This is no longer on diVine.";
+"PageUnavailable" = "This page of Vine no longer exists.";
+
+"User" = "User";
+"GuestName" = "Guest";
+"GuestDescription" = "Watching Vines from diVine with Revine";
+
+"ChannelClassics" = "Classic Vines";
+"ChannelNew" = "New on diVine";
+"ChannelComedy" = "Comedy";
+"ChannelAnimals" = "Animals";
+"ChannelMusic" = "Music";
+"ChannelDance" = "Dance";
+"ChannelArt" = "Art";
+"ChannelEntertainment" = "Entertainment";
+"ChannelFamily" = "Family";
+"ChannelSports" = "Sports";
+"ChannelFashion" = "Fashion";
+"ChannelFood" = "Food";
+"ChannelTravel" = "Travel";
+"ChannelGaming" = "Gaming";
+"ChannelEducation" = "Education";
+"ChannelNews" = "News";
+
+"ExploreFeeds" = "Feeds";
+"ExplorePopularNow" = "Popular now";
+"ExploreTrendingTags" = "Trending tags";
+"ExploreChannels" = "Channels";
+"ExploreNote" = "Videos from diVine (divine.video): the Vine archive and new loops. Revine is not affiliated with Vine, Twitter or diVine.";
+
+/* Network errors (the other texts of the network layer are English already) */
+"Certificate verification can be turned off in Settings." = "The server's certificate did not pass the check.";

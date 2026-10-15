@@ -1,0 +1,11 @@
+.theos/
+obj/
+packages/
+vendor/mbedtls/
+layout/Library/Application Support/Revine/cacert.pem
+layout/Library/Application Support/Revine/licenses/
+*.ipa
+*.deb
+.DS_Store
+local.json
+.env

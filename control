@@ -1,0 +1,9 @@
+Package: com.samcejko.revine
+Name: Revine
+Version: 0.1.0
+Architecture: iphoneos-arm
+Description: Brings the original Vine app (2.5.1) back on iOS 6 with the content of diVine: the Vine archive and new six-second videos, profiles, comments, hashtags, channels and search. Viewing only, no account needed. Install Vine 2.5.1 yourself.
+Maintainer: samcejko
+Author: samcejko
+Section: Tweaks
+Depends: mobilesubstrate, firmware (>= 6.0), firmware (<< 11.0)

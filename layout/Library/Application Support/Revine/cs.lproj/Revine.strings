@@ -1,0 +1,55 @@
+/* Revine - texty uvnitř Vine (čeština) */
+
+"ReadOnlyMessage" = "Revine zatím umí Viny jen přehrávat. Lajky, komentáře, sledování a přidávání videí potřebují účet na diVine, ke kterému se Vine zatím přihlásit neumí.";
+"UnreachableMessage" = "diVine není dostupné. Zkontroluj připojení a zkus to znovu.";
+"NotFoundMessage" = "Tohle už na diVine není.";
+"PageUnavailable" = "Tahle stránka Vine už neexistuje.";
+
+"User" = "Uživatel";
+"GuestName" = "Host";
+"GuestDescription" = "Sleduju Viny z diVine přes Revine";
+
+"ChannelClassics" = "Klasické Viny";
+"ChannelNew" = "Nové na diVine";
+"ChannelComedy" = "Komedie";
+"ChannelAnimals" = "Zvířata";
+"ChannelMusic" = "Hudba";
+"ChannelDance" = "Tanec";
+"ChannelArt" = "Umění";
+"ChannelEntertainment" = "Zábava";
+"ChannelFamily" = "Rodina";
+"ChannelSports" = "Sport";
+"ChannelFashion" = "Móda";
+"ChannelFood" = "Jídlo";
+"ChannelTravel" = "Cestování";
+"ChannelGaming" = "Hry";
+"ChannelEducation" = "Vzdělávání";
+"ChannelNews" = "Zprávy";
+
+"ExploreFeeds" = "Kanály videí";
+"ExplorePopularNow" = "Teď populární";
+"ExploreTrendingTags" = "Populární hashtagy";
+"ExploreChannels" = "Kategorie";
+"ExploreNote" = "Videa z diVine (divine.video): archiv Vine a nové smyčky. Revine nemá nic společného s Vine, Twitterem ani diVine.";
+
+/* Chyby síťové vrstvy */
+"Cancelled" = "Zrušeno";
+"Connection failed." = "Připojení se nezdařilo.";
+"Connection lost." = "Spojení se přerušilo.";
+"The server sent an invalid response." = "Server poslal neplatnou odpověď.";
+"The server closed the connection without responding." = "Server ukončil spojení bez odpovědi.";
+"Content decoding failed." = "Obsah se nepodařilo rozbalit.";
+"Sending the request failed." = "Odeslání požadavku se nezdařilo.";
+"Unexpected response: %@" = "Nečekaná odpověď: %@";
+"Could not resolve %@ (%s). Is the device online?" = "Nepodařilo se najít %@ (%s). Je zařízení online?";
+"Could not connect to %@: %@" = "Nepodařilo se připojit k %@: %@";
+"connection timed out" = "vypršel čas spojení";
+"The certificate bundle is missing, cannot verify the server." = "Chybí balík certifikátů, server nejde ověřit.";
+"Check the date and time of this device." = "Zkontroluj datum a čas zařízení.";
+"Certificate verification can be turned off in Settings." = "Certifikát serveru neprošel ověřením.";
+"Server certificate rejected: %@. %@" = "Certifikát serveru odmítnut: %@. %@";
+"TLS handshake timed out." = "Vypršel čas navázání šifrovaného spojení.";
+"TLS handshake failed: %@" = "Šifrované spojení se nepodařilo navázat: %@";
+"Sending the request failed: %@" = "Odeslání požadavku se nezdařilo: %@";
+"The server stopped responding (timeout)." = "Server přestal odpovídat (vypršel čas).";
+"Receiving the response failed: %@" = "Příjem odpovědi se nezdařil: %@";
