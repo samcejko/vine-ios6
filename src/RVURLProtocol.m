@@ -55,8 +55,19 @@ static NSURL *RVProxyTarget(NSURL *url)
 {
     NSURL *url = request.URL;
     NSString *scheme = [url.scheme lowercaseString];
-    if (!([scheme isEqualToString:@"https"] || [scheme isEqualToString:@"http"])) return NO;
-    return [RVVineAPI handlesHost:url.host] || RVIsMediaHost(url.host);
+    BOOL handled = ([scheme isEqualToString:@"https"] || [scheme isEqualToString:@"http"]) &&
+                   ([RVVineAPI handlesHost:url.host] || RVIsMediaHost(url.host));
+    if (RVDebugLogRequests()) {
+        // (asked several times per request: each URL once is enough)
+        static NSMutableSet *seen;
+        static dispatch_once_t once;
+        dispatch_once(&once, ^{ seen = [NSMutableSet set]; });
+        NSString *key = [NSString stringWithFormat:@"%@ %@", request.HTTPMethod, url.absoluteString];
+        BOOL fresh;
+        @synchronized (seen) { fresh = ![seen containsObject:key]; if (fresh) [seen addObject:key]; }
+        if (fresh) RVLog(@"REQ %@ %@", handled ? @"ours  " : @"system", key);
+    }
+    return handled;
 }
 
 + (NSURLRequest *)canonicalRequestForRequest:(NSURLRequest *)request

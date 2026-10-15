@@ -98,7 +98,8 @@ function Get-VineCrashLogs {
 # Turns the test commands of src/RVDebug.m on or off (a root-owned file next to the tweak's support files)
 function Set-RevineDebug {
     param([bool]$On = $true, [string]$IPadHost = $script:IPadDefaultHost)
-    $cmd = if ($On) { 'touch "/Library/Application Support/Revine/debug" && echo DEBUG_ON' } else { 'rm -f "/Library/Application Support/Revine/debug"; echo DEBUG_OFF' }
+    # (ssh.exe drops double quotes from the command line: the space is escaped instead)
+    $cmd = if ($On) { 'touch /Library/Application\ Support/Revine/debug && echo DEBUG_ON' } else { 'rm -f /Library/Application\ Support/Revine/debug; echo DEBUG_OFF' }
     Invoke-IPad -IPadHost $IPadHost -Command $cmd
 }
 

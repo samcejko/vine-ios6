@@ -38,3 +38,7 @@ double RVDbl(id value);
 NSString *RVSupportPath(NSString *name);
 // A text in the language of the device (English or Czech), from the support folder
 NSString *RVText(NSString *key);
+
+// Test mode (the root-owned file /Library/Application Support/Revine/debug, checked once at launch): every request
+// of the app goes to the log
+BOOL RVDebugLogRequests(void);

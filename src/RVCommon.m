@@ -44,6 +44,14 @@ NSString *RVSupportPath(NSString *name)
     return [RVSupportDir stringByAppendingPathComponent:name];
 }
 
+BOOL RVDebugLogRequests(void)
+{
+    static BOOL enabled;
+    static dispatch_once_t once;
+    dispatch_once(&once, ^{ enabled = [[NSFileManager defaultManager] fileExistsAtPath:RVSupportPath(@"debug")]; });
+    return enabled;
+}
+
 NSString *RVText(NSString *key)
 {
     static NSBundle *bundle;
