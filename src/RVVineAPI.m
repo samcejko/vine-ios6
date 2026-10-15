@@ -217,6 +217,13 @@ static NSDictionary *RVFlatVideo(NSDictionary *video)
     return flat;
 }
 
+// Vine counts entity ranges in Unicode code points (it cuts the caption as UTF-32 data): an emoji is one, not the
+// two UTF-16 units NSString counts. A range past the end crashes the app (-[VNEntity initWithJSON:inString:]).
+static NSUInteger RVCodePoints(NSString *text, NSUInteger utf16Index)
+{
+    return [[text substringToIndex:MIN(utf16Index, text.length)] lengthOfBytesUsingEncoding:NSUTF32LittleEndianStringEncoding] / 4;
+}
+
 // Hashtags of a caption as Vine entities: tappable, with their character range
 static NSArray *RVTagEntities(NSString *text, NSMutableOrderedSet *names)
 {
@@ -235,7 +242,7 @@ static NSArray *RVTagEntities(NSString *text, NSMutableOrderedSet *names)
             @"type": @"tag",
             @"id": @([RVIDMap idForName:[name lowercaseString] kind:RVIDKindTag]),
             @"title": name,
-            @"range": @[@(range.location), @(NSMaxRange(range))],
+            @"range": @[@(RVCodePoints(text, range.location)), @(RVCodePoints(text, NSMaxRange(range)))],
             @"link": [@"vine://tag/" stringByAppendingString:[RVDivine escape:name]],
             @"vanityUrls": @[],
         }];
