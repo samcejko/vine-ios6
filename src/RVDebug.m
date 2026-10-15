@@ -237,8 +237,83 @@ static void RVHandleDebug(NSURL *url)
         while (root.presentedViewController) root = root.presentedViewController;
         [root.presentingViewController dismissViewControllerAnimated:YES completion:nil];
         RVLog(@"DEBUG close %@", NSStringFromClass([root class]));
+    } else if ([command isEqualToString:@"inspect"]) {
+        RVInspect(q);
     } else {
         RVLog(@"DEBUG unknown command %@", command);
+    }
+}
+
+// The ivars of an object (objects by class and a short description, numbers by value)
+static void RVLogIvars(id object, Class cls)
+{
+    for (Class c = cls; c && c != [NSObject class]; c = class_getSuperclass(c)) {
+        unsigned int count = 0;
+        Ivar *ivars = class_copyIvarList(c, &count);
+        for (unsigned int i = 0; i < count; i++) {
+            const char *type = ivar_getTypeEncoding(ivars[i]);
+            NSString *name = [NSString stringWithUTF8String:ivar_getName(ivars[i])];
+            NSString *value;
+            if (type && type[0] == '@') {
+                id v = object_getIvar(object, ivars[i]);
+                NSString *d = [v description] ?: @"nil";
+                if (d.length > 300) d = [[d substringToIndex:300] stringByAppendingString:@"..."];
+                value = v ? [NSString stringWithFormat:@"<%@> %@", NSStringFromClass([v class]), d] : @"nil";
+            } else if (type && (type[0] == 'c' || type[0] == 'B' || type[0] == 'C')) {
+                value = [NSString stringWithFormat:@"%d", (int)*((char *)(__bridge void *)object + ivar_getOffset(ivars[i]))];
+            } else if (type && (type[0] == 'i' || type[0] == 'I' || type[0] == 'l' || type[0] == 'L')) {
+                value = [NSString stringWithFormat:@"%d", *(int *)((char *)(__bridge void *)object + ivar_getOffset(ivars[i]))];
+            } else {
+                value = [NSString stringWithFormat:@"(%s)", type ?: "?"];
+            }
+            RVLog(@"DEBUG  %@.%@ = %@", NSStringFromClass(c), name, value);
+        }
+        free(ivars);
+    }
+}
+
+// inspect?class=X[&sel=sharedInstance]: X's class methods, and the ivars of the object its shared-instance method
+// returns
+static void RVInspect(NSDictionary *q)
+{
+    Class cls = NSClassFromString(q[@"class"] ?: @"");
+    if (!cls) { RVLog(@"DEBUG inspect: no class %@", q[@"class"]); return; }
+    unsigned int count = 0;
+    Method *methods = class_copyMethodList(object_getClass(cls), &count);
+    NSMutableArray *names = [NSMutableArray array];
+    SEL shared = q[@"sel"] ? NSSelectorFromString(q[@"sel"]) : NULL;
+    for (unsigned int i = 0; i < count; i++) {
+        SEL sel = method_getName(methods[i]);
+        NSString *name = NSStringFromSelector(sel);
+        [names addObject:name];
+        if (!shared && [name rangeOfString:@"shared" options:NSCaseInsensitiveSearch].location != NSNotFound &&
+            [name rangeOfString:@":"].location == NSNotFound) shared = sel;
+    }
+    free(methods);
+    RVLog(@"DEBUG class methods of %@: %@", NSStringFromClass(cls), [names componentsJoinedByString:@" "]);
+    if (q[@"methods"]) {
+        Method *im = class_copyMethodList(cls, &count);
+        NSMutableArray *inames = [NSMutableArray array];
+        for (unsigned int i = 0; i < count; i++) [inames addObject:NSStringFromSelector(method_getName(im[i]))];
+        free(im);
+        RVLog(@"DEBUG instance methods of %@: %@", NSStringFromClass(cls), [inames componentsJoinedByString:@" "]);
+    }
+    if (!shared || ![cls respondsToSelector:shared]) { RVLog(@"DEBUG inspect: no shared instance method"); return; }
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Warc-performSelector-leaks"
+    id instance = [cls performSelector:shared];
+#pragma clang diagnostic pop
+    RVLog(@"DEBUG +%@ -> %@", NSStringFromSelector(shared), instance ? NSStringFromClass([instance class]) : @"nil");
+    if (instance) RVLogIvars(instance, [instance class]);
+    NSString *path = q[@"path"];   // a key path to follow from there (e.g. client.baseURL)
+    if (instance && path.length) {
+        @try {
+            id v = [instance valueForKeyPath:path];
+            RVLog(@"DEBUG %@ = <%@> %@", path, v ? NSStringFromClass([v class]) : @"nil", v);
+            if (v && q[@"deep"]) RVLogIvars(v, [v class]);
+        } @catch (NSException *e) {
+            RVLog(@"DEBUG %@: %@", path, e.reason);
+        }
     }
 }
 
