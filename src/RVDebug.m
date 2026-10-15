@@ -280,6 +280,18 @@ static void RVHandleDebug(NSURL *url)
             [alert dismissWithClickedButtonIndex:index animated:YES];
         }
         RVLog(@"DEBUG alert -> %@ / %@", alert ? alert.title : @"none", alert ? alert.message : @"");
+    } else if ([command isEqualToString:@"scroll"]) {
+        // the biggest visible scroll view (the feed or the post page) to an offset
+        NSMutableArray *views = [NSMutableArray array];
+        RVCollect(key, [UIScrollView class], views);
+        UIScrollView *best = nil;
+        for (UIScrollView *v in views) {
+            if ([v isKindOfClass:[UITextView class]]) continue;
+            if (!best || v.bounds.size.width * v.bounds.size.height > best.bounds.size.width * best.bounds.size.height) best = v;
+        }
+        CGFloat y = [q[@"y"] floatValue];
+        [best setContentOffset:CGPointMake(0, MAX(0, MIN(y, best.contentSize.height - best.bounds.size.height))) animated:NO];
+        RVLog(@"DEBUG scroll %@ to %.0f of %.0f", NSStringFromClass([best class]), best.contentOffset.y, best.contentSize.height);
     } else if ([command isEqualToString:@"back"]) {
         [top.navigationController popViewControllerAnimated:YES];
         RVLog(@"DEBUG back from %@", NSStringFromClass([top class]));
