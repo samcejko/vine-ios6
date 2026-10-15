@@ -7,6 +7,17 @@
 static const NSInteger RVMaxRedirects = 5;
 static NSString * const RVProxyPrefix = @"http://media.vineapp.com/revine/proxy?u=";
 
+// Vine builds the URLs of its timeline client from a host its configuration server used to send ("%@/timelines/
+// graph"); without that server the host is nil and the URL reads "(null)/timelines/...". Those are API requests.
+static NSString * const RVNullHostPrefix = @"(null)/";
+
+static NSURL *RVNormalizedURL(NSURL *url)
+{
+    NSString *string = url.absoluteString;
+    if (![string hasPrefix:RVNullHostPrefix]) return url;
+    return [NSURL URLWithString:[@"https://api.vineapp.com/" stringByAppendingString:[string substringFromIndex:RVNullHostPrefix.length]]] ?: url;
+}
+
 static BOOL RVIsMediaHost(NSString *host)
 {
     host = [host lowercaseString];
@@ -55,8 +66,9 @@ static NSURL *RVProxyTarget(NSURL *url)
 {
     NSURL *url = request.URL;
     NSString *scheme = [url.scheme lowercaseString];
-    BOOL handled = ([scheme isEqualToString:@"https"] || [scheme isEqualToString:@"http"]) &&
-                   ([RVVineAPI handlesHost:url.host] || RVIsMediaHost(url.host));
+    BOOL handled = (([scheme isEqualToString:@"https"] || [scheme isEqualToString:@"http"]) &&
+                    ([RVVineAPI handlesHost:url.host] || RVIsMediaHost(url.host))) ||
+                   [url.absoluteString hasPrefix:RVNullHostPrefix];
     if (RVDebugLogRequests()) {
         // (asked several times per request: each URL once is enough)
         static NSMutableSet *seen;
@@ -102,6 +114,12 @@ static NSURL *RVProxyTarget(NSURL *url)
         return;
     }
     NSURLRequest *request = self.request;
+    NSURL *normalized = RVNormalizedURL(url);
+    if (normalized != url) {
+        NSMutableURLRequest *copy = [request mutableCopy];
+        copy.URL = normalized;
+        request = copy;
+    }
     NSData *body = [self requestBody];
     dispatch_async(dispatch_get_global_queue(DISPATCH_QUEUE_PRIORITY_DEFAULT, 0), ^{
         if (self.stopped) return;
