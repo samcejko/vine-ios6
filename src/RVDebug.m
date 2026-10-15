@@ -290,6 +290,12 @@ static void RVHandleDebug(NSURL *url)
         RVLog(@"DEBUG close %@", NSStringFromClass([root class]));
     } else if ([command isEqualToString:@"inspect"]) {
         RVInspect(q);
+    } else if ([command isEqualToString:@"plainurl"]) {
+        // +[NSURL URLWithString:] without other tweaks' rewriting (VineRedirect), in this process only
+        Method m = class_getClassMethod([NSURL class], @selector(URLWithString:));
+        id block = ^NSURL *(id cls, NSString *string) { return string ? [[NSURL alloc] initWithString:string] : nil; };
+        if (m) method_setImplementation(m, imp_implementationWithBlock(block));
+        RVLog(@"DEBUG plainurl: +URLWithString: now %@", [NSURL URLWithString:@"https://vine.co/explore/v3"]);
     } else {
         RVLog(@"DEBUG unknown command %@", command);
     }
