@@ -4,6 +4,7 @@
 
 static BOOL (*g_origOpenURL)(id, SEL, UIApplication *, NSURL *, NSString *, id);
 static BOOL (*g_origHandleOpenURL)(id, SEL, UIApplication *, NSURL *);
+static void RVInspect(NSDictionary *q);
 
 static BOOL RVDebugEnabled(void)
 {
