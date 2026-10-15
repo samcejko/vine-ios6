@@ -370,10 +370,28 @@ static void *RVModifyRequest(id self, SEL _cmd, id request)
     return result;
 }
 
+static id (*g_origRequestWithMethod)(id, SEL, id, id, id);
+static id RVRequestWithMethod(id self, SEL _cmd, id method, id path, id parameters)
+{
+    id request = g_origRequestWithMethod(self, _cmd, method, path, parameters);
+    NSString *result = [[request URL] absoluteString];
+    if ([result hasPrefix:@"(null)"] || parameters) {
+        id base = nil;
+        @try { base = [self valueForKey:@"baseURL"]; } @catch (NSException *e) {}
+        RVLog(@"DEBUG AF %@ path=%@ params=%@ base=%@ -> %@", method, path, parameters, base, result);
+    }
+    return request;
+}
+
 @implementation RVDebug
 
 + (void)install
 {
+    if (RVDebugLogRequests()) {
+        Class af = NSClassFromString(@"AFHTTPClient");
+        Method m = af ? class_getInstanceMethod(af, @selector(requestWithMethod:path:parameters:)) : NULL;
+        if (m) g_origRequestWithMethod = (id (*)(id, SEL, id, id, id))method_setImplementation(m, (IMP)RVRequestWithMethod);
+    }
     if (RVDebugLogRequests()) {
         Class manager = NSClassFromString(@"VNAPIManager");
         Method m = manager ? class_getInstanceMethod(manager, @selector(clientForEndpoint:)) : NULL;
